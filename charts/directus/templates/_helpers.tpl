@@ -63,9 +63,6 @@ Create the name of the service account to use
 
 {{/*
 Renders a value that contains template perhaps with scope if the scope is present.
-Usage:
-{{ include "directus.render" ( dict "value" .Values.path.to.the.Value "context" $ ) }}
-{{ include "directus.render" ( dict "value" .Values.path.to.the.Value "context" $ "scope" $app ) }}
 */}}
 {{- define "directus.render" -}}
 {{- $value := typeIs "string" .value | ternary .value (.value | toYaml) }}
@@ -78,4 +75,150 @@ Usage:
 {{- else }}
     {{- $value }}
 {{- end }}
+{{- end -}}
+
+{{/*
+Smart environment variable value handler - supports both shorthand and advanced syntax
+Usage: {{ include "directus.smartEnvValue" (dict "value" .Values.database.host "context" $) }}
+
+Shorthand: database.host: "mydb.com"
+Advanced: database.host: { secretKeyRef: { name: "secret", key: "host" } }
+*/}}
+{{- define "directus.smartEnvValue" -}}
+{{- $value := .value -}}
+{{- if typeIs "string" $value -}}
+  {{- $value | quote -}}
+{{- else if typeIs "float64" $value -}}
+  {{- $value | quote -}}
+{{- else if typeIs "bool" $value -}}
+  {{- $value | quote -}}
+{{- else if and (typeIs "map[string]interface {}" $value) $value.secretKeyRef.name -}}
+  valueFrom:
+    secretKeyRef:
+      name: {{ $value.secretKeyRef.name | quote }}
+      key: {{ $value.secretKeyRef.key | quote }}
+{{- else if and (typeIs "map[string]interface {}" $value) $value.configMapKeyRef.name -}}
+  valueFrom:
+    configMapKeyRef:
+      name: {{ $value.configMapKeyRef.name | quote }}
+      key: {{ $value.configMapKeyRef.key | quote }}
+{{- else if and (typeIs "map[string]interface {}" $value) $value.value -}}
+  {{- $value.value | quote -}}
+{{- else -}}
+  ""
+{{- end -}}
+{{- end -}}
+
+{{/*
+Check if environment variable should be rendered as valueFrom (not static in ConfigMap)
+Usage: {{ if include "directus.isValueFrom" .Values.database.host }}
+*/}}
+{{- define "directus.isValueFrom" -}}
+{{- $value := . -}}
+{{- if typeIs "map[string]interface {}" $value -}}
+  {{- if or $value.secretKeyRef.name $value.configMapKeyRef.name -}}
+true
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Get the actual value from shorthand or advanced syntax (for use in ConfigMap)
+Usage: {{ include "directus.getValue" .Values.database.host }}
+*/}}
+{{- define "directus.getValue" -}}
+{{- $value := . -}}
+{{- if typeIs "string" $value -}}
+  {{- $value -}}
+{{- else if typeIs "float64" $value -}}
+  {{- $value -}}
+{{- else if typeIs "bool" $value -}}
+  {{- $value -}}
+{{- else if and (typeIs "map[string]interface {}" $value) $value.value -}}
+  {{- $value.value -}}
+{{- else -}}
+  {{- "" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate database host with fallbacks
+*/}}
+{{- define "directus.dbHost" -}}
+{{- $dbHost := include "directus.getValue" .Values.database.host -}}
+{{- if $dbHost -}}
+  {{- $dbHost -}}
+{{- else if .Values.externalDatabase.enabled -}}
+  {{- .Values.externalDatabase.host -}}
+{{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "mysql" -}}
+  {{- if .Values.mysql.enabled -}}
+    {{- printf "%s-mysql.%s.svc.cluster.local" .Release.Name .Release.Namespace -}}
+  {{- end -}}
+{{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "postgresql" -}}
+  {{- if .Values.postgresql.enabled -}}
+    {{- printf "%s-postgresql.%s.svc.cluster.local" .Release.Name .Release.Namespace -}}
+  {{- end -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate database port with fallbacks
+*/}}
+{{- define "directus.dbPort" -}}
+{{- $dbPort := include "directus.getValue" .Values.database.port -}}
+{{- if $dbPort -}}
+  {{- $dbPort -}}
+{{- else if .Values.externalDatabase.enabled -}}
+  {{- .Values.externalDatabase.port | default "3306" -}}
+{{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "mysql" -}}
+  {{- "3306" -}}
+{{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "postgresql" -}}
+  {{- "5432" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate database name with fallbacks
+*/}}
+{{- define "directus.dbDatabase" -}}
+{{- $dbName := include "directus.getValue" .Values.database.name -}}
+{{- if $dbName -}}
+  {{- $dbName -}}
+{{- else if .Values.externalDatabase.enabled -}}
+  {{- .Values.externalDatabase.database -}}
+{{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "mysql" -}}
+  {{- .Values.mysql.auth.database | default "directus" -}}
+{{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "postgresql" -}}
+  {{- .Values.postgresql.auth.database | default "directus" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate database username with fallbacks
+*/}}
+{{- define "directus.dbUser" -}}
+{{- $dbUser := include "directus.getValue" .Values.database.username -}}
+{{- if $dbUser -}}
+  {{- $dbUser -}}
+{{- else if .Values.externalDatabase.enabled -}}
+  {{- .Values.externalDatabase.username -}}
+{{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "mysql" -}}
+  {{- .Values.mysql.auth.username | default "directus" -}}
+{{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "postgresql" -}}
+  {{- .Values.postgresql.auth.username | default "directus" -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Generate Redis host with fallbacks
+*/}}
+{{- define "directus.redisHost" -}}
+{{- $redisHost := include "directus.getValue" .Values.directusRedis.host -}}
+{{- if $redisHost -}}
+  {{- $redisHost -}}
+{{- else if .Values.externalRedis.enabled -}}
+  {{- .Values.externalRedis.host -}}
+{{- else if .Values.redis.enabled -}}
+  {{- printf "%s-redis-master" .Release.Name -}}
+{{- end -}}
 {{- end -}}

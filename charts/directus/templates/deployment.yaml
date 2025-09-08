@@ -41,51 +41,148 @@ spec:
           image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           envFrom:
-            {{- range $val := .Values.attachExistingSecrets }}
+            {{- range $val := (.Values.attachExistingSecrets | default .Values.extraEnvVars) }}
             - secretRef:
                 name: {{ $val }}
             {{- end }}
             - configMapRef:
                 name: {{ include "directus.fullname" . }}-configmap
           env:
-            {{- if eq .Values.databaseEngine "mysql" }}
+            # Database configuration with smart value sourcing
+            {{- if include "directus.isValueFrom" .Values.database.client }}
+            - name: DB_CLIENT
+              {{- include "directus.smartEnvValue" (dict "value" .Values.database.client "context" $) | nindent 14 }}
+            {{- end }}
+            
+            {{- if include "directus.isValueFrom" .Values.database.host }}
+            - name: DB_HOST
+              {{- include "directus.smartEnvValue" (dict "value" .Values.database.host "context" $) | nindent 14 }}
+            {{- end }}
+            
+            {{- if include "directus.isValueFrom" .Values.database.port }}
+            - name: DB_PORT
+              {{- include "directus.smartEnvValue" (dict "value" .Values.database.port "context" $) | nindent 14 }}
+            {{- end }}
+            
+            {{- if include "directus.isValueFrom" .Values.database.name }}
+            - name: DB_DATABASE
+              {{- include "directus.smartEnvValue" (dict "value" .Values.database.name "context" $) | nindent 14 }}
+            {{- end }}
+            
+            {{- if include "directus.isValueFrom" .Values.database.username }}
+            - name: DB_USER
+              {{- include "directus.smartEnvValue" (dict "value" .Values.database.username "context" $) | nindent 14 }}
+            {{- end }}
+
+            {{- if include "directus.isValueFrom" .Values.database.password }}
+            - name: DB_PASSWORD
+              {{- include "directus.smartEnvValue" (dict "value" .Values.database.password "context" $) | nindent 14 }}
+            {{- else }}
+            # Database password fallback logic
+            {{- if .Values.externalDatabase.enabled }}
+            {{- if .Values.externalDatabase.existingSecret }}
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.mysql.auth.existingSecret }}
+                  name: {{ .Values.externalDatabase.existingSecret }}
+                  key: {{ .Values.externalDatabase.existingSecretPasswordKey | default "password" }}
+            {{- else if .Values.externalDatabase.password }}
+            - name: DB_PASSWORD
+              value: {{ .Values.externalDatabase.password | quote }}
+            {{- end }}
+            {{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "mysql" }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysql.auth.existingSecret | default (printf "%s-mysql" .Release.Name) }}
                   key: mysql-password
-            {{- else if eq .Values.databaseEngine "postgresql" }}
+            {{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "postgresql" }}
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.postgresql.auth.existingSecret }}
+                  name: {{ .Values.postgresql.auth.existingSecret | default (printf "%s-postgresql" .Release.Name) }}
                   key: password
             {{- end }}
+            {{- end }}
+
+            # Admin configuration
+            {{- if include "directus.isValueFrom" .Values.admin.email }}
+            - name: ADMIN_EMAIL
+              {{- include "directus.smartEnvValue" (dict "value" .Values.admin.email "context" $) | nindent 14 }}
+            {{- end }}
+
+            # Redis configuration with smart value sourcing
+            {{- if include "directus.isValueFrom" .Values.directusRedis.enabled }}
+            - name: REDIS_ENABLED
+              {{- include "directus.smartEnvValue" (dict "value" .Values.directusRedis.enabled "context" $) | nindent 14 }}
+            {{- end }}
+
+            {{- if include "directus.isValueFrom" .Values.directusRedis.host }}
+            - name: REDIS_HOST
+              {{- include "directus.smartEnvValue" (dict "value" .Values.directusRedis.host "context" $) | nindent 14 }}
+            {{- end }}
+            
+            {{- if include "directus.isValueFrom" .Values.directusRedis.port }}
+            - name: REDIS_PORT
+              {{- include "directus.smartEnvValue" (dict "value" .Values.directusRedis.port "context" $) | nindent 14 }}
+            {{- end }}
+            
+            {{- if include "directus.isValueFrom" .Values.directusRedis.username }}
+            - name: REDIS_USERNAME
+              {{- include "directus.smartEnvValue" (dict "value" .Values.directusRedis.username "context" $) | nindent 14 }}
+            {{- end }}
+
+            {{- if include "directus.isValueFrom" .Values.directusRedis.password }}
+            - name: REDIS_PASSWORD
+              {{- include "directus.smartEnvValue" (dict "value" .Values.directusRedis.password "context" $) | nindent 14 }}
+            {{- else if include "directus.getValue" .Values.directusRedis.enabled }}
+            # Redis password fallback logic
+            {{- if .Values.externalRedis.enabled }}
+            {{- if .Values.externalRedis.existingSecret }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.externalRedis.existingSecret }}
+                  key: {{ .Values.externalRedis.existingSecretPasswordKey | default "password" }}
+            {{- else if .Values.externalRedis.password }}
+            - name: REDIS_PASSWORD
+              value: {{ .Values.externalRedis.password | quote }}
+            {{- end }}
+            {{- else if .Values.redis.enabled }}
+            - name: REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.redis.auth.existingSecret | default (printf "%s-redis" .Release.Name) }}
+                  key: {{ .Values.redis.auth.existingSecretPasswordKey | default "redis-password" }}
+            {{- end }}
+            {{- end }}
+
+            # Application URL
+            {{- if include "directus.isValueFrom" .Values.application.publicUrl }}
+            - name: PUBLIC_URL
+              {{- include "directus.smartEnvValue" (dict "value" .Values.application.publicUrl "context" $) | nindent 14 }}
+            {{- end }}
+
+            # Application secrets
             - name: ADMIN_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.applicationSecretName }}
+                  name: {{ .Values.secrets.application.name | default .Values.applicationSecretName | default "directus-application" }}
                   key: ADMIN_PASSWORD
             - name: SECRET
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.applicationSecretName }}
+                  name: {{ .Values.secrets.application.name | default .Values.applicationSecretName | default "directus-application" }}
                   key: SECRET
             - name: KEY
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.applicationSecretName }}
+                  name: {{ .Values.secrets.application.name | default .Values.applicationSecretName | default "directus-application" }}
                   key: KEY
-            {{- if .Values.ingress.enabled }}
-            - name: PUBLIC_URL
-              value: http{{ if .Values.ingress.enableTLS }}s{{ end }}://{{(index .Values.ingress.hosts 0).host }}{{(index (index .Values.ingress.hosts 0).paths 0).path }}
-            {{- end }}
-            {{- if .Values.redis.enabled}}
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: {{- if .Values.redis.auth.existingSecret}} {{ .Values.redis.auth.existingSecret }} {{- else }} {{ .Release.Name }}-redis {{- end }}
-                  key: {{- if .Values.redis.auth.existingSecretPasswordKey }} {{ .Values.redis.auth.existingSecretPasswordKey }} {{- else }} redis-password {{- end }}
+
+            # Extra environment variables
+            {{- if .Values.extraEnv }}
+            {{- toYaml .Values.extraEnv | nindent 12 }}
             {{- end }}
             {{- if .Values.extraEnvVars }}
             {{- tpl (toYaml .Values.extraEnvVars) $ | nindent 12 }}
@@ -112,17 +209,6 @@ spec:
             {{- toYaml .Values.extraVolumeMounts | nindent 12 }}
         {{- if .Values.sidecars }}
         {{- include "directus.render" ( dict "value" .Values.sidecars "context" $ ) | nindent 8 }}
-        {{- end }}
-        {{- if .Values.sidecar.enabled }}
-        - name: {{ .Chart.Name }}-sidecar
-          image: "{{ .Values.sidecar.repository }}:{{ .Values.sidecar.tag }}"
-          imagePullPolicy: {{ .Values.sidecar.pullPolicy }}
-          {{- with .Values.sidecar.command }}
-          command:
-            {{- toYaml . | nindent 12 }}
-          {{- end }}
-          securityContext:
-            {{- toYaml .Values.sidecar.securityContext | nindent 12 }}
         {{- end }}
       {{- with .Values.nodeSelector }}
       nodeSelector:

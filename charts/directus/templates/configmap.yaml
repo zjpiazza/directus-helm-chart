@@ -8,15 +8,59 @@ metadata:
     app.kubernetes.io/managed-by: {{ .Release.Service }}
     helm.sh/chart: {{ include "directus.chart" . }}
 data:
-  DB_CLIENT: {{ .Values.databaseEngine }}
-  DB_HOST: {{- if eq .Values.databaseEngine "mysql" }} {{- if .Values.mysql.mysqlURL }} "{{ .Values.mysql.mysqlURL }}" {{- else }} "{{ .Release.Name }}-mysql.{{ .Release.Namespace }}.svc.cluster.local" {{- end }} {{- else if eq .Values.databaseEngine "postgresql" }} {{- if .Values.postgresql.postgresqlURL }} "{{ .Values.postgresql.postgresqlURL }}" {{- else }} "{{ .Release.Name }}-postgresql.{{ .Release.Namespace }}.svc.cluster.local" {{- end }} {{- end }}
-  DB_PORT: {{ if eq .Values.databaseEngine "mysql" }}{{ default "3306" .Values.mysql.mysqlPort | quote }}{{ else if eq .Values.databaseEngine "postgresql" }}{{ default "5432" .Values.postgresql.postgresqlPort | quote }}{{ end }}
-  DB_DATABASE: {{- if eq .Values.databaseEngine "mysql" }} {{ .Values.mysql.auth.database }} {{- else if eq .Values.databaseEngine "postgresql" }} {{ .Values.postgresql.auth.database }} {{- else }} "" {{- end }}
-  DB_USER: {{- if eq .Values.databaseEngine "mysql" }} {{ .Values.mysql.auth.username }} {{- else if eq .Values.databaseEngine "postgresql" }} {{ .Values.postgresql.auth.username }} {{- else }} "" {{- end }}
-  ADMIN_EMAIL: "{{ .Values.adminEmail }}"
-  REDIS_ENABLED: {{- if .Values.redis.enabled }} "true" {{- else }} "false" {{- end }}
-  {{- if .Values.redis.enabled}}
-  REDIS_HOST: {{ .Release.Name }}-redis-master
-  REDIS_PORT: "6379"
-  REDIS_USERNAME: "default"
-  {{- end}}
+  # Database configuration (only static values - valueFrom handled in deployment)
+  {{- if not (include "directus.isValueFrom" .Values.database.client) }}
+  DB_CLIENT: {{ include "directus.getValue" .Values.database.client | default .Values.databaseEngine | quote }}
+  {{- end }}
+  
+  {{- if not (include "directus.isValueFrom" .Values.database.host) }}
+  DB_HOST: {{ include "directus.dbHost" . | quote }}
+  {{- end }}
+  
+  {{- if not (include "directus.isValueFrom" .Values.database.port) }}
+  DB_PORT: {{ include "directus.dbPort" . | quote }}
+  {{- end }}
+  
+  {{- if not (include "directus.isValueFrom" .Values.database.name) }}
+  DB_DATABASE: {{ include "directus.dbDatabase" . | quote }}
+  {{- end }}
+  
+  {{- if not (include "directus.isValueFrom" .Values.database.username) }}
+  DB_USER: {{ include "directus.dbUser" . | quote }}
+  {{- end }}
+
+  # Admin configuration
+  {{- if not (include "directus.isValueFrom" .Values.admin.email) }}
+  ADMIN_EMAIL: {{ include "directus.getValue" .Values.admin.email | default .Values.adminEmail | quote }}
+  {{- end }}
+
+  # Redis configuration
+  {{- if not (include "directus.isValueFrom" .Values.directusRedis.enabled) }}
+  REDIS_ENABLED: {{ include "directus.getValue" .Values.directusRedis.enabled | quote }}
+  {{- end }}
+  
+  {{- if include "directus.getValue" .Values.directusRedis.enabled }}
+  {{- if not (include "directus.isValueFrom" .Values.directusRedis.host) }}
+  REDIS_HOST: {{ include "directus.redisHost" . | quote }}
+  {{- end }}
+  
+  {{- if not (include "directus.isValueFrom" .Values.directusRedis.port) }}
+  REDIS_PORT: {{ include "directus.getValue" .Values.directusRedis.port | quote }}
+  {{- end }}
+  
+  {{- if not (include "directus.isValueFrom" .Values.directusRedis.username) }}
+  REDIS_USERNAME: {{ include "directus.getValue" .Values.directusRedis.username | quote }}
+  {{- end }}
+  {{- end }}
+
+  # Public URL configuration
+  {{- if .Values.ingress.enabled }}
+  {{- if not (include "directus.isValueFrom" .Values.application.publicUrl) }}
+  {{- $publicUrl := include "directus.getValue" .Values.application.publicUrl -}}
+  {{- if not $publicUrl }}
+  PUBLIC_URL: "http{{ if .Values.ingress.enableTLS }}s{{ end }}://{{(index .Values.ingress.hosts 0).host }}{{(index (index .Values.ingress.hosts 0).paths 0).path }}"
+  {{- else }}
+  PUBLIC_URL: {{ $publicUrl | quote }}
+  {{- end }}
+  {{- end }}
+  {{- end }}

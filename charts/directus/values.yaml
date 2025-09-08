@@ -1,236 +1,342 @@
 ---
-# Default values for directus.
-# This is a YAML-formatted file.
+# Directus Helm Chart Values
+# This file follows Helm best practices with ergonomic, user-friendly structure
 
+# =============================================================================
+# BASIC DEPLOYMENT CONFIGURATION
+# =============================================================================
+
+# -- Number of Directus replicas
 replicaCount: 1
 
-# -- Deployment strategy, for example:
-# updateStrategy:
-#   type: RollingUpdate
-#   rollingUpdate:
-#     maxSurge: 25%
-#     maxUnavailable: 25%
-# -- Or:
-# updateStrategy:
-#   type: Recreate
+# -- Deployment strategy
 updateStrategy:
   type: RollingUpdate
 
+# -- Docker image configuration
 image:
-  # -- Directus image docker repository
+  # -- Directus image repository
   repository: directus/directus
-  # -- Pull policy for docker image
+  # -- Image pull policy
   pullPolicy: IfNotPresent
-  # -- Overrides the image tag whose default is the chart appVersion.
+  # -- Image tag (defaults to chart appVersion)
   tag: ""
 
-# -- Image Pull Secrets in k8s for docker image
+# -- Image pull secrets
 imagePullSecrets: []
-# -- Helm name override in Chart.yaml. This name is being used for resource naming
+
+# -- Name overrides
 nameOverride: ""
-# -- Completely overrides Chart name
 fullnameOverride: ""
 
-# -- Init Containers for Directus pod
-initContainers: []
-#  - name: myinitcontainer
-#    image: alpine:latest
-#    restartPolicy: Always
-#    command:
-#      - sh
-#      - -c
-#      - cat /opt/file.txt
-#    volumeMounts:
-#      - name: opt
-#        mountPath: /opt
+# =============================================================================
+# DATABASE CONFIGURATION
+# Simple syntax: database.host: "mydb.com"
+# Advanced syntax: database.host: { secretKeyRef: { name: "secret", key: "host" } }
+# =============================================================================
 
-# -- Sidecars for Directus pod
-sidecars: []
-#  - name: busybox
-#    image: busybox:latest
-#    imagePullPolicy: Always
-#    command:
-#      - /bin/sh
-#      - -c
-#      - sleep 3600;
+database:
+  # -- Database client type (mysql, postgresql)
+  client: "mysql"
 
-sidecar:
-  # IMPORTANT! This feature is going to be DEPRECATED in the next release in favour of `sidecars`
-  # -- Sidecars for Directus pod
-  enabled: false
-  repository: busybox
-  tag: latest
-  pullPolicy: Always
-  # -- Command to run in sidecar docker image
-  command:
-    - /bin/sh
-    - -c
-    - sleep 3600;
-  securityContext: {}
-    # allowPrivilegeEscalation: true
+  # -- Database host (auto-generated from dependency charts if empty)
+  host: ""
 
-adminEmail: "directus-admin@example.com"
+  # -- Database port (auto-detected based on client if empty)
+  port: null
 
-serviceAccount:
-  # -- Specifies whether a service account should be created
-  create: true
-  # -- Annotations to add to the service account
-  annotations: {}
-  # -- The name of the service account to use. If not set and create is true, a name is generated using the fullname template
+  # -- Database name (auto-generated if empty)
   name: ""
 
+  # -- Database username (auto-generated if empty)
+  username: ""
+
+  # -- Database password (recommended to use secretKeyRef for security)
+  # Example: password: { secretKeyRef: { name: "db-secret", key: "password" } }
+  password: ""
+
+# =============================================================================
+# ADMIN CONFIGURATION
+# =============================================================================
+
+admin:
+  # -- Admin email for Directus
+  email: "directus-admin@example.com"
+
+# =============================================================================
+# DIRECTUS REDIS CONNECTION CONFIGURATION
+# Configure how Directus connects to Redis (separate from Redis dependency chart)
+# =============================================================================
+
+directusRedis:
+  # -- Enable Redis connection
+  enabled: true
+
+  # -- Redis host (auto-generated if Redis dependency enabled)
+  host: ""
+
+  # -- Redis port
+  port: 6379
+
+  # -- Redis username
+  username: "default"
+
+  # -- Redis password
+  # Example: password: { secretKeyRef: { name: "redis-secret", key: "password" } }
+  password: ""
+
+# =============================================================================
+# APPLICATION CONFIGURATION
+# =============================================================================
+
+application:
+  # -- Public URL (auto-generated from ingress if empty)
+  publicUrl: ""
+
+# =============================================================================
+# SECRETS MANAGEMENT
+# =============================================================================
+
+secrets:
+  # -- Create application secrets (ADMIN_PASSWORD, SECRET, KEY)
+  createApplication: true
+  
+  # -- Create database secrets for dependency charts
+  createDatabase: true
+
+  # -- Application secret configuration
+  application:
+    name: "directus-application"
+    
+  # -- Database secret configuration  
+  database:
+    name: "directus-database"
+
+# -- Attach existing secrets as envFrom
+attachExistingSecrets: []
+
+# -- Additional environment variables (for custom env vars)
+extraEnv: []
+# Examples:
+# - name: CUSTOM_VAR
+#   value: "custom-value"
+# - name: SECRET_VAR
+#   valueFrom:
+#     secretKeyRef:
+#       name: my-secret
+#       key: secret-key
+
+# =============================================================================
+# KUBERNETES RESOURCES
+# =============================================================================
+
+# -- Service account configuration
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# -- Pod configuration
 podAnnotations: {}
-
 podSecurityContext: {}
-  # fsGroup: 2000
-
 securityContext: {}
-  # capabilities:
-  #   drop:
-  #   - ALL
-  # readOnlyRootFilesystem: true
-  # runAsNonRoot: true
-  # runAsUser: 1000
 
+# -- Service configuration
 service:
   type: ClusterIP
   port: 80
 
+# -- Ingress configuration
 ingress:
   enabled: false
-  # -- Enable TLS in PUBLIC_URL
   enableTLS: true
   className: ""
-  # -- Ingress annotations. Usually used in cloud environments
   annotations: {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
   hosts:
-    # -- Hostname to expose. You should create CNAME DNS record with this hostname to redirect to ALB DNS name
     - host: chart-example.local
       paths:
         - path: /
           pathType: Prefix
   tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
 
-extraEnvVars: []
-
-attachExistingSecrets: []
-  # - existingSecretInKubernetes
-
+# -- Resource limits and requests
 resources: {}
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
-  # limits:
-  #   cpu: 100m
-  #   memory: 128Mi
-  # requests:
-  #   cpu: 100m
-  #   memory: 128Mi
 
+# -- Horizontal Pod Autoscaler
 autoscaling:
   enabled: false
   minReplicas: 1
   maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+  targetCpuUtilizationPercentage: 80
 
+# -- Health checks
 livenessProbe:
   enabled: true
   httpGet:
     path: /
     port: http
+
 readinessProbe:
   enabled: true
   httpGet:
     path: /
     port: http
+
 startupProbe:
   enabled: false
   httpGet:
     path: /
     port: http
 
-
+# -- Node selection
 nodeSelector: {}
-
 tolerations: []
-
 affinity: {}
 
+# -- Volumes
 extraVolumes: []
-
 extraVolumeMounts: []
 
-# -- This setting enables the creation of `ADMIN_PASSWORD`, `KEY`, and `SECRET` variables in k8s secrets.
-# If it is set to false, you MUST set these variables manually via existing secret resource and set its name below.
-createApplicationSecret: true
+# -- Init containers
+initContainers: []
 
-applicationSecretName: "directus-application-secret"
+# -- Sidecars
+sidecars: []
 
-# -- Database engine. Could be set to one value from the following list: `mysql`, `postgresql`.
-# Please disable installations for other database engines in this chart.
-# Please note if you use mariadb server, set `databaseEngine` to `mysql` value.
-# Details are here - https://directus.io/docs/configuration/database.
+# =============================================================================
+# DEPENDENCY CHARTS (Bitnami charts)
+# =============================================================================
+
+# -- MySQL configuration (Bitnami chart)
+mysql:
+  # -- Enable MySQL installation
+  enabled: true
+  
+  # -- MySQL authentication
+  auth:
+    # -- Root password (generated if not set)
+    rootPassword: ""
+    # -- Database name
+    database: "directus"
+    # -- Database username  
+    username: "directus"
+    # -- Use existing secret for MySQL passwords
+    existingSecret: ""
+
+# -- PostgreSQL configuration (Bitnami chart)
+postgresql:
+  # -- Enable PostgreSQL installation
+  enabled: false
+  
+  # -- PostgreSQL authentication
+  auth:
+    # -- Postgres password (generated if not set)
+    postgresPassword: ""
+    # -- Database name
+    database: "directus"
+    # -- Database username
+    username: "directus"
+    # -- Use existing secret for PostgreSQL passwords
+    existingSecret: ""
+
+# -- Redis configuration (Bitnami chart) 
+# Note: This configures the Redis dependency installation, not Directus Redis connection
+# Use directusRedis.* above to configure how Directus connects to Redis
+redis:
+  # -- Enable Redis installation
+  enabled: true
+  
+  # -- Redis authentication
+  auth:
+    # -- Enable Redis AUTH
+    enabled: true
+    # -- Redis password (generated if not set)
+    password: ""
+    # -- Use existing secret for Redis password
+    existingSecret: ""
+    existingSecretPasswordKey: ""
+
+  # -- Redis replica configuration
+  replica:
+    replicaCount: 0
+
+# =============================================================================
+# EXTERNAL DATABASE CONFIGURATION
+# Use this when connecting to external databases instead of installing dependencies
+# =============================================================================
+
+externalDatabase:
+  # -- Use external database instead of installing MySQL/PostgreSQL
+  enabled: false
+  
+  # -- Database type (mysql, postgresql)
+  type: "mysql"
+  
+  # -- External database host
+  host: ""
+  
+  # -- External database port
+  port: null
+  
+  # -- External database name
+  database: ""
+  
+  # -- External database username
+  username: ""
+  
+  # -- External database password
+  password: ""
+  
+  # -- Existing secret containing database credentials
+  existingSecret: ""
+  existingSecretPasswordKey: "password"
+  existingSecretUsernameKey: "username"
+
+# =============================================================================
+# EXTERNAL REDIS CONFIGURATION  
+# =============================================================================
+
+externalRedis:
+  # -- Use external Redis instead of installing Redis
+  enabled: false
+  
+  # -- External Redis host
+  host: ""
+  
+  # -- External Redis port
+  port: 6379
+  
+  # -- External Redis username
+  username: "default"
+  
+  # -- External Redis password
+  password: ""
+  
+  # -- Existing secret containing Redis credentials
+  existingSecret: ""
+  existingSecretPasswordKey: "password"
+
+# =============================================================================
+# LEGACY COMPATIBILITY (deprecated - use new structure above)
+# =============================================================================
+
+# -- Database engine (deprecated - use database.client instead)
 databaseEngine: "mysql"
 
-# -- Create PostgreSQL secret in Directus chart
-# If set to enable, postgresql secret with values of `postgres-password`, `password`, and `replication-password` variables will be created.
-# Please consult the official bitnami postgres values file - https://github.com/bitnami/charts/blob/main/bitnami/postgresql/values.yaml#L164.
-# If set to false, you MUST create a secret resource in k8s for postgresql installation and set the correct value to the `existingSecret` in the postgresql settings setion.
-createPostgresqlSecret: false
+# -- Admin email (deprecated - use admin.email instead)  
+adminEmail: "directus-admin@example.com"
 
-# -- Create MySQL secret in Directus chart
-# If set to enable, mysql secret with values of `mysql-root-password`, `mysql-replication-password` and `mysql-password` variables will be created.
-# Please consult the official bitnami mysql values file - https://github.com/bitnami/charts/blob/main/bitnami/mysql/values.yaml#L152.
-# If set to false, you MUST create a secret resource in k8s for mysql installation and set the correct value to the `existingSecret` in the mysql settings section.
+# -- Application secret name (deprecated - use secrets.application.name instead)
+applicationSecretName: "directus-application"
+
+# -- Create application secret (deprecated - use secrets.createApplication instead)
+createApplicationSecret: true
+
+# -- Create MySQL secret (deprecated - use secrets.createDatabase instead)
 createMysqlSecret: true
 
-mysql:
-  # -- The switch to switch off the installation of the mysql.
-  # The rest of the settings are being used during the installation and for DB connection.
-  # Link to the values.yaml file in bitnami repo - https://github.com/bitnami/charts/blob/main/bitnami/mysql/values.yaml
-  enableInstallation: true
-  auth:
-    existingSecret: "directus-mysql-secret"
-    database: "directus_mysql"
-    username: "directus_mysql"
-  # If you want to use your own mysql or mariadb insance, please provide the URL to the existing instance in `mysqlURL`.
-  # Otherwise leave it empty to use mysql that being installed in the cluster with this chart.
-  # Please note mysql.auth.database will be used as a name of the database
-  # and mysql.auth.username will be used as username during the connection.
-  mysqlURL: ""
-  mysqlPort: ""
+# -- Create PostgreSQL secret (deprecated - use secrets.createDatabase instead)
+createPostgresqlSecret: false
 
-postgresql:
-  # -- The switch to switch off the installation of the postgresql.
-  # The rest of the settings are being used during the installation and for DB connection.
-  # Link to the values.yaml file in bitnami repo - https://github.com/bitnami/charts/blob/main/bitnami/postgresql/values.yaml
-  enableInstallation: false
-  auth:
-    existingSecret: "directus-postgresql-secret"
-    database: "directus_postgres"
-    username: "directus_postgres"
-  # If you want to use your own postgresql, please provide the URL to the existing instance in `postgresqlURL`.
-  # Otherwise leave it empty to use postgresql server that being installed in the cluster with this chart.
-  # Please note postgresql.auth.database will be used as a name of the database
-  # and postgresql.auth.username will be used as username during the connection.
-  postgresqlURL: ""
-  postgresqlPort: ""
-
-redis:
-  # -- Switch to enable Redis
-  enabled: true
-  auth:
-    # -- Existing secret name with Redis password
-    existingSecret: ""
-    # -- The key in the secret with password
-    existingSecretPasswordKey: ""
-  replica:
-    # -- Amount of Redis replicas
-    replicaCount: 0
+# -- Extra environment variables (deprecated - use extraEnv instead)
+extraEnvVars: []
