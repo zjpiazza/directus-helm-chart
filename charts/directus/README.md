@@ -1,6 +1,6 @@
 # directus
 
-![Version: 2.0.4](https://img.shields.io/badge/Version-2.0.4-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.9.3](https://img.shields.io/badge/AppVersion-11.9.3-informational?style=flat-square)
+![Version: 3.0.0](https://img.shields.io/badge/Version-3.0.0-informational?style=flat-square) ![Type: application](https://img.shields.io/badge/Type-application-informational?style=flat-square) ![AppVersion: 11.9.3](https://img.shields.io/badge/AppVersion-11.9.3-informational?style=flat-square)
 
 A Helm chart for installing Directus on Kubernetes.
 Directus is a real-time API and App dashboard for managing SQL database content.
@@ -26,6 +26,12 @@ Directus is a real-time API and App dashboard for managing SQL database content.
 | https://charts.bitnami.com/bitnami | postgresql | ~16.7.8 |
 | https://charts.bitnami.com/bitnami | redis | ~21.1.11 |
 
+## Breaking Changes in 3.0.0
+
+- Removed `attachExistingSecrets` to prevent unintentional environment variable overrides (e.g. `HOST`, `PORT`).
+- Migration: replace with per-variable `secretKeyRef` under `database.*`, `mysql.external.*`, `postgresql.external.*`, or define entries in `extraEnv`.
+- Validation now fails if `attachExistingSecrets` is still set in values.
+
 ## Values
 
 | Key | Type | Default | Description |
@@ -33,7 +39,7 @@ Directus is a real-time API and App dashboard for managing SQL database content.
 | adminEmail | string | `"directus-admin@example.com"` |  |
 | affinity | object | `{}` |  |
 | applicationSecretName | string | `"directus-application-secret"` |  |
-| attachExistingSecrets | list | `[]` |  |
+| attachExistingSecrets | list | `[]` | Removed in 3.0.0 (previously bulk envFrom secret injection). Use explicit secretKeyRef values or extraEnv instead. |
 | autoscaling.enabled | bool | `false` |  |
 | autoscaling.maxReplicas | int | `100` |  |
 | autoscaling.minReplicas | int | `1` |  |
