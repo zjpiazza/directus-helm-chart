@@ -11,11 +11,11 @@ Directus is a real-time API and App dashboard for managing SQL database content.
 
 | Name | Email | Url |
 | ---- | ------ | --- |
-| mikesindieiev | <sindieiev@protonmail.ch> | <https://github.com/directus-labs/helm-chart> |
+| zjpiazza |  | <https://github.com/zjpiazza/directus-helm-chart> |
 
 ## Source Code
 
-* <https://github.com/directus-labs/helm-chart/tree/master/charts/directus>
+* <https://github.com/zjpiazza/directus-helm-chart>
 * <https://github.com/directus/directus>
 
 ## Requirements
@@ -26,87 +26,108 @@ Directus is a real-time API and App dashboard for managing SQL database content.
 | https://charts.bitnami.com/bitnami | postgresql | ~16.7.8 |
 | https://charts.bitnami.com/bitnami | redis | ~21.1.11 |
 
-## Breaking Changes in 3.0.0
-
-- Removed `attachExistingSecrets` to prevent unintentional environment variable overrides (e.g. `HOST`, `PORT`).
-- Migration: replace with per-variable `secretKeyRef` under `database.*`, `mysql.external.*`, `postgresql.external.*`, or define entries in `extraEnv`.
-- Validation now fails if `attachExistingSecrets` is still set in values.
-
 ## Values
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| adminEmail | string | `"directus-admin@example.com"` |  |
+| admin.email | string | `"directus-admin@example.com"` | Admin email for Directus |
+| adminEmail | string | `"directus-admin@example.com"` | Admin email (deprecated - use admin.email instead)   |
 | affinity | object | `{}` |  |
-| applicationSecretName | string | `"directus-application-secret"` |  |
-| attachExistingSecrets | list | `[]` | Removed in 3.0.0 (previously bulk envFrom secret injection). Use explicit secretKeyRef values or extraEnv instead. |
-| autoscaling.enabled | bool | `false` |  |
-| autoscaling.maxReplicas | int | `100` |  |
-| autoscaling.minReplicas | int | `1` |  |
-| autoscaling.targetCPUUtilizationPercentage | int | `80` |  |
-| createApplicationSecret | bool | `true` | This setting enables the creation of `ADMIN_PASSWORD`, `KEY`, and `SECRET` variables in k8s secrets. If it is set to false, you MUST set these variables manually via existing secret resource and set its name below. |
-| createMysqlSecret | bool | `true` | Create MySQL secret in Directus chart If set to enable, mysql secret with values of `mysql-root-password`, `mysql-replication-password` and `mysql-password` variables will be created. Please consult the official bitnami mysql values file - https://github.com/bitnami/charts/blob/main/bitnami/mysql/values.yaml#L152. If set to false, you MUST create a secret resource in k8s for mysql installation and set the correct value to the `existingSecret` in the mysql settings section. |
-| createPostgresqlSecret | bool | `false` | Create PostgreSQL secret in Directus chart If set to enable, postgresql secret with values of `postgres-password`, `password`, and `replication-password` variables will be created. Please consult the official bitnami postgres values file - https://github.com/bitnami/charts/blob/main/bitnami/postgresql/values.yaml#L164. If set to false, you MUST create a secret resource in k8s for postgresql installation and set the correct value to the `existingSecret` in the postgresql settings setion. |
-| databaseEngine | string | `"mysql"` | Database engine. Could be set to one value from the following list: `mysql`, `postgresql`. Please disable installations for other database engines in this chart. Please note if you use mariadb server, set `databaseEngine` to `mysql` value. Details are here - https://directus.io/docs/configuration/database. |
-| extraEnvVars | list | `[]` |  |
+| application.publicUrl | string | `""` | Public URL (auto-generated from ingress if empty) |
+| applicationSecretName | string | `"directus-application"` | Application secret name (deprecated - use secrets.application.name instead) |
+| autoscaling | object | `{"enabled":false,"maxReplicas":100,"minReplicas":1,"targetCpuUtilizationPercentage":80}` | Horizontal Pod Autoscaler |
+| createApplicationSecret | bool | `true` | Create application secret (deprecated - use secrets.createApplication instead) |
+| createMysqlSecret | bool | `true` | Create MySQL secret (deprecated - use secrets.createDatabase instead) |
+| createPostgresqlSecret | bool | `false` | Create PostgreSQL secret (deprecated - use secrets.createDatabase instead) |
+| database.client | string | `"mysql"` | Database client type (mysql, postgresql) |
+| database.host | string | `""` | Database host (auto-generated from dependency charts if empty) |
+| database.name | string | `""` | Database name (auto-generated if empty) |
+| database.password | string | `""` | Database password (recommended to use secretKeyRef for security) Example: password: { secretKeyRef: { name: "db-secret", key: "password" } } |
+| database.port | string | `nil` | Database port (auto-detected based on client if empty) |
+| database.username | string | `""` | Database username (auto-generated if empty) |
+| databaseEngine | string | `"mysql"` | Database engine (deprecated - use database.client instead) |
+| directusRedis.enabled | bool | `true` | Enable Redis connection |
+| directusRedis.host | string | `""` | Redis host (auto-generated if Redis dependency enabled) |
+| directusRedis.password | string | `""` | Redis password Example: password: { secretKeyRef: { name: "redis-secret", key: "password" } } |
+| directusRedis.port | int | `6379` | Redis port |
+| directusRedis.username | string | `"default"` | Redis username |
+| externalRedis.enabled | bool | `false` | Use external Redis instead of installing Redis |
+| externalRedis.existingSecret | string | `""` | Existing secret containing Redis credentials |
+| externalRedis.existingSecretPasswordKey | string | `"password"` |  |
+| externalRedis.host | string | `""` | External Redis host |
+| externalRedis.password | string | `""` | External Redis password |
+| externalRedis.port | int | `6379` | External Redis port |
+| externalRedis.username | string | `"default"` | External Redis username |
+| extraEnv | list | `[]` | Additional environment variables (for custom env vars) |
+| extraEnvVars | list | `[]` | Extra environment variables (deprecated - use extraEnv instead) |
 | extraVolumeMounts | list | `[]` |  |
-| extraVolumes | list | `[]` |  |
-| fullnameOverride | string | `""` | Completely overrides Chart name |
-| image.pullPolicy | string | `"IfNotPresent"` | Pull policy for docker image |
-| image.repository | string | `"directus/directus"` | Directus image docker repository |
-| image.tag | string | `""` | Overrides the image tag whose default is the chart appVersion. |
-| imagePullSecrets | list | `[]` | Image Pull Secrets in k8s for docker image |
-| ingress.annotations | object | `{}` | Ingress annotations. Usually used in cloud environments |
-| ingress.className | string | `""` |  |
-| ingress.enableTLS | bool | `true` | Enable TLS in PUBLIC_URL |
-| ingress.enabled | bool | `false` |  |
-| ingress.hosts[0] | object | `{"host":"chart-example.local","paths":[{"path":"/","pathType":"Prefix"}]}` | Hostname to expose. You should create CNAME DNS record with this hostname to redirect to ALB DNS name |
-| ingress.tls | list | `[]` |  |
-| initContainers | list | `[]` | Init Containers for Directus pod |
-| livenessProbe.enabled | bool | `true` |  |
-| livenessProbe.httpGet.path | string | `"/"` |  |
-| livenessProbe.httpGet.port | string | `"http"` |  |
-| mysql.auth.database | string | `"directus_mysql"` |  |
-| mysql.auth.existingSecret | string | `"directus-mysql-secret"` |  |
-| mysql.auth.username | string | `"directus_mysql"` |  |
-| mysql.enableInstallation | bool | `true` | The switch to switch off the installation of the mysql. The rest of the settings are being used during the installation and for DB connection. Link to the values.yaml file in bitnami repo - https://github.com/bitnami/charts/blob/main/bitnami/mysql/values.yaml |
-| mysql.mysqlPort | string | `""` |  |
-| mysql.mysqlURL | string | `""` |  |
-| nameOverride | string | `""` | Helm name override in Chart.yaml. This name is being used for resource naming |
-| nodeSelector | object | `{}` |  |
-| podAnnotations | object | `{}` |  |
+| extraVolumes | list | `[]` | Volumes |
+| fullnameOverride | string | `""` |  |
+| image | object | `{"pullPolicy":"IfNotPresent","repository":"directus/directus","tag":""}` | Docker image configuration |
+| image.pullPolicy | string | `"IfNotPresent"` | Image pull policy |
+| image.repository | string | `"directus/directus"` | Directus image repository |
+| image.tag | string | `""` | Image tag (defaults to chart appVersion) |
+| imagePullSecrets | list | `[]` | Image pull secrets |
+| ingress | object | `{"annotations":{},"className":"","enableTLS":true,"enabled":false,"hosts":[{"host":"chart-example.local","paths":[{"path":"/","pathType":"Prefix"}]}],"tls":[]}` | Ingress configuration |
+| initContainers | list | `[]` | Init containers |
+| livenessProbe | object | `{"enabled":true,"httpGet":{"path":"/","port":"http"}}` | Health checks |
+| mysql | object | `{"auth":{"database":"directus","existingSecret":"","rootPassword":"","username":"directus"},"enabled":true,"external":{"database":"directus","enabled":false,"existingSecret":"","existingSecretPasswordKey":"password","existingSecretUsernameKey":"username","host":"","password":"","port":3306,"username":"directus"}}` | MySQL configuration (Bitnami chart and external) |
+| mysql.auth | object | `{"database":"directus","existingSecret":"","rootPassword":"","username":"directus"}` | MySQL subchart authentication (when enabled: true) |
+| mysql.auth.database | string | `"directus"` | Database name |
+| mysql.auth.existingSecret | string | `""` | Use existing secret for MySQL passwords |
+| mysql.auth.rootPassword | string | `""` | Root password (generated if not set) |
+| mysql.auth.username | string | `"directus"` | Database username   |
+| mysql.enabled | bool | `true` | Enable MySQL subchart installation |
+| mysql.external | object | `{"database":"directus","enabled":false,"existingSecret":"","existingSecretPasswordKey":"password","existingSecretUsernameKey":"username","host":"","password":"","port":3306,"username":"directus"}` | External MySQL configuration |
+| mysql.external.database | string | `"directus"` | External MySQL database name |
+| mysql.external.enabled | bool | `false` | Use external MySQL database instead of subchart |
+| mysql.external.existingSecret | string | `""` | Use existing secret for MySQL credentials |
+| mysql.external.host | string | `""` | External MySQL host |
+| mysql.external.password | string | `""` | External MySQL password (supports secretKeyRef) Example: password: { secretKeyRef: { name: "mysql-secret", key: "password" } } |
+| mysql.external.port | int | `3306` | External MySQL port |
+| mysql.external.username | string | `"directus"` | External MySQL username |
+| nameOverride | string | `""` | Name overrides |
+| nodeSelector | object | `{}` | Node selection |
+| podAnnotations | object | `{}` | Pod configuration |
 | podSecurityContext | object | `{}` |  |
-| postgresql.auth.database | string | `"directus_postgres"` |  |
-| postgresql.auth.existingSecret | string | `"directus-postgresql-secret"` |  |
-| postgresql.auth.username | string | `"directus_postgres"` |  |
-| postgresql.enableInstallation | bool | `false` | The switch to switch off the installation of the postgresql. The rest of the settings are being used during the installation and for DB connection. Link to the values.yaml file in bitnami repo - https://github.com/bitnami/charts/blob/main/bitnami/postgresql/values.yaml |
-| postgresql.postgresqlPort | string | `""` |  |
-| postgresql.postgresqlURL | string | `""` |  |
+| postgresql | object | `{"auth":{"database":"directus","existingSecret":"","postgresPassword":"","username":"directus"},"enabled":false,"external":{"database":"directus","enabled":false,"existingSecret":"","existingSecretPasswordKey":"password","existingSecretUsernameKey":"username","host":"","password":"","port":5432,"username":"directus"}}` | PostgreSQL configuration (Bitnami chart and external) |
+| postgresql.auth | object | `{"database":"directus","existingSecret":"","postgresPassword":"","username":"directus"}` | PostgreSQL subchart authentication (when enabled: true) |
+| postgresql.auth.database | string | `"directus"` | Database name |
+| postgresql.auth.existingSecret | string | `""` | Use existing secret for PostgreSQL passwords |
+| postgresql.auth.postgresPassword | string | `""` | Postgres password (generated if not set) |
+| postgresql.auth.username | string | `"directus"` | Database username |
+| postgresql.enabled | bool | `false` | Enable PostgreSQL subchart installation |
+| postgresql.external | object | `{"database":"directus","enabled":false,"existingSecret":"","existingSecretPasswordKey":"password","existingSecretUsernameKey":"username","host":"","password":"","port":5432,"username":"directus"}` | External PostgreSQL configuration |
+| postgresql.external.database | string | `"directus"` | External PostgreSQL database name |
+| postgresql.external.enabled | bool | `false` | Use external PostgreSQL database instead of subchart |
+| postgresql.external.existingSecret | string | `""` | Use existing secret for PostgreSQL credentials |
+| postgresql.external.host | string | `""` | External PostgreSQL host |
+| postgresql.external.password | string | `""` | External PostgreSQL password (supports secretKeyRef) Example: password: { secretKeyRef: { name: "postgres-secret", key: "password" } } |
+| postgresql.external.port | int | `5432` | External PostgreSQL port |
+| postgresql.external.username | string | `"directus"` | External PostgreSQL username |
 | readinessProbe.enabled | bool | `true` |  |
 | readinessProbe.httpGet.path | string | `"/"` |  |
 | readinessProbe.httpGet.port | string | `"http"` |  |
-| redis.auth.existingSecret | string | `""` | Existing secret name with Redis password |
-| redis.auth.existingSecretPasswordKey | string | `""` | The key in the secret with password |
-| redis.enabled | bool | `true` | Switch to enable Redis |
-| redis.replica.replicaCount | int | `0` | Amount of Redis replicas |
-| replicaCount | int | `1` |  |
-| resources | object | `{}` |  |
+| redis | object | `{"auth":{"enabled":true,"existingSecret":"","existingSecretPasswordKey":"","password":""},"enabled":true,"replica":{"replicaCount":0}}` | Redis configuration (Bitnami chart)  Note: This configures the Redis dependency installation, not Directus Redis connection Use directusRedis.* above to configure how Directus connects to Redis |
+| redis.auth | object | `{"enabled":true,"existingSecret":"","existingSecretPasswordKey":"","password":""}` | Redis authentication |
+| redis.auth.enabled | bool | `true` | Enable Redis AUTH |
+| redis.auth.existingSecret | string | `""` | Use existing secret for Redis password |
+| redis.auth.password | string | `""` | Redis password (generated if not set) |
+| redis.enabled | bool | `true` | Enable Redis installation |
+| redis.replica | object | `{"replicaCount":0}` | Redis replica configuration |
+| replicaCount | int | `1` | Number of Directus replicas |
+| resources | object | `{}` | Resource limits and requests |
+| secrets.application | object | `{"name":"directus-application"}` | Application secret configuration |
+| secrets.createApplication | bool | `true` | Create application secrets (ADMIN_PASSWORD, SECRET, KEY) |
+| secrets.createDatabase | bool | `true` | Create database secrets for dependency charts |
+| secrets.database | object | `{"name":"directus-database"}` | Database secret configuration   |
 | securityContext | object | `{}` |  |
-| service.port | int | `80` |  |
-| service.type | string | `"ClusterIP"` |  |
-| serviceAccount.annotations | object | `{}` | Annotations to add to the service account |
-| serviceAccount.create | bool | `true` | Specifies whether a service account should be created |
-| serviceAccount.name | string | `""` | The name of the service account to use. If not set and create is true, a name is generated using the fullname template |
-| sidecar.command | list | `["/bin/sh","-c","sleep 3600;"]` | Command to run in sidecar docker image |
-| sidecar.enabled | bool | `false` | Sidecars for Directus pod |
-| sidecar.pullPolicy | string | `"Always"` |  |
-| sidecar.repository | string | `"busybox"` |  |
-| sidecar.securityContext | object | `{}` |  |
-| sidecar.tag | string | `"latest"` |  |
-| sidecars | list | `[]` | Sidecars for Directus pod |
+| service | object | `{"port":80,"type":"ClusterIP"}` | Service configuration |
+| serviceAccount | object | `{"annotations":{},"create":true,"name":""}` | Service account configuration |
+| sidecars | list | `[]` | Sidecars |
 | startupProbe.enabled | bool | `false` |  |
 | startupProbe.httpGet.path | string | `"/"` |  |
 | startupProbe.httpGet.port | string | `"http"` |  |
 | tolerations | list | `[]` |  |
-| updateStrategy | object | `{"type":"RollingUpdate"}` | Or: updateStrategy:   type: Recreate |
+| updateStrategy | object | `{"type":"RollingUpdate"}` | Deployment strategy |
 
