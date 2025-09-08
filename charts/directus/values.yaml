@@ -112,8 +112,7 @@ secrets:
   database:
     name: "directus-database"
 
-# -- Attach existing secrets as envFrom
-attachExistingSecrets: []
+# attachExistingSecrets: []  # Removed in 3.0.0. Bulk envFrom secret injection eliminated for security; define per-variable secretKeyRef or use extraEnv instead.
 
 # -- Additional environment variables (for custom env vars)
 extraEnv: []

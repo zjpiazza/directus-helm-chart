@@ -271,4 +271,7 @@ Validate database configuration
 {{- if and $mysqlEnabled $postgresqlEnabled -}}
   {{- fail "Cannot enable both MySQL and PostgreSQL subcharts" -}}
 {{- end -}}
+{{- if .Values.attachExistingSecrets }}
+  {{- fail "attachExistingSecrets has been removed in chart 3.0.0. Define individual secretKeyRef entries instead of bulk secret injection." -}}
+{{- end -}}
 {{- end -}}
