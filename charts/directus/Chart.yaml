@@ -9,17 +9,16 @@ description: |
 home: https://directus.io/
 
 sources:
-  - https://github.com/directus-labs/helm-chart/tree/master/charts/directus
+  - https://github.com/zjpiazza/directus-helm-chart
   - https://github.com/directus/directus
 
 icon: https://avatars.githubusercontent.com/u/79210894
 
 maintainers:
-  - name: mikesindieiev
-    email: sindieiev@protonmail.ch
-    url: https://github.com/directus-labs/helm-chart
+  - name: zjpiazza
+    url: https://github.com/zjpiazza/directus-helm-chart
 
-version: 2.0.4
+version: 2.1.0
 appVersion: "11.9.3"
 
 dependencies:
