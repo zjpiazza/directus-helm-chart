@@ -148,8 +148,10 @@ Generate database host with fallbacks
 {{- $dbHost := include "directus.getValue" .Values.database.host -}}
 {{- if $dbHost -}}
   {{- $dbHost -}}
-{{- else if .Values.externalDatabase.enabled -}}
-  {{- .Values.externalDatabase.host -}}
+{{- else if .Values.mysql.external.enabled -}}
+  {{- include "directus.getValue" .Values.mysql.external.host -}}
+{{- else if .Values.postgresql.external.enabled -}}
+  {{- include "directus.getValue" .Values.postgresql.external.host -}}
 {{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "mysql" -}}
   {{- if .Values.mysql.enabled -}}
     {{- printf "%s-mysql.%s.svc.cluster.local" .Release.Name .Release.Namespace -}}
@@ -168,8 +170,10 @@ Generate database port with fallbacks
 {{- $dbPort := include "directus.getValue" .Values.database.port -}}
 {{- if $dbPort -}}
   {{- $dbPort -}}
-{{- else if .Values.externalDatabase.enabled -}}
-  {{- .Values.externalDatabase.port | default "3306" -}}
+{{- else if .Values.mysql.external.enabled -}}
+  {{- include "directus.getValue" .Values.mysql.external.port | default "3306" -}}
+{{- else if .Values.postgresql.external.enabled -}}
+  {{- include "directus.getValue" .Values.postgresql.external.port | default "5432" -}}
 {{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "mysql" -}}
   {{- "3306" -}}
 {{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "postgresql" -}}
@@ -184,8 +188,10 @@ Generate database name with fallbacks
 {{- $dbName := include "directus.getValue" .Values.database.name -}}
 {{- if $dbName -}}
   {{- $dbName -}}
-{{- else if .Values.externalDatabase.enabled -}}
-  {{- .Values.externalDatabase.database -}}
+{{- else if .Values.mysql.external.enabled -}}
+  {{- include "directus.getValue" .Values.mysql.external.database -}}
+{{- else if .Values.postgresql.external.enabled -}}
+  {{- include "directus.getValue" .Values.postgresql.external.database -}}
 {{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "mysql" -}}
   {{- .Values.mysql.auth.database | default "directus" -}}
 {{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "postgresql" -}}
@@ -200,8 +206,10 @@ Generate database username with fallbacks
 {{- $dbUser := include "directus.getValue" .Values.database.username -}}
 {{- if $dbUser -}}
   {{- $dbUser -}}
-{{- else if .Values.externalDatabase.enabled -}}
-  {{- .Values.externalDatabase.username -}}
+{{- else if .Values.mysql.external.enabled -}}
+  {{- include "directus.getValue" .Values.mysql.external.username -}}
+{{- else if .Values.postgresql.external.enabled -}}
+  {{- include "directus.getValue" .Values.postgresql.external.username -}}
 {{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "mysql" -}}
   {{- .Values.mysql.auth.username | default "directus" -}}
 {{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "postgresql" -}}
@@ -220,5 +228,47 @@ Generate Redis host with fallbacks
   {{- .Values.externalRedis.host -}}
 {{- else if .Values.redis.enabled -}}
   {{- printf "%s-redis-master" .Release.Name -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Check if MySQL should be enabled (respects mysql.external.enabled)
+*/}}
+{{- define "directus.mysqlEnabled" -}}
+{{- if .Values.mysql.external.enabled -}}
+  {{- false -}}
+{{- else -}}
+  {{- .Values.mysql.enabled -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Check if PostgreSQL should be enabled (respects postgresql.external.enabled)
+*/}}
+{{- define "directus.postgresqlEnabled" -}}
+{{- if .Values.postgresql.external.enabled -}}
+  {{- false -}}
+{{- else -}}
+  {{- .Values.postgresql.enabled -}}
+{{- end -}}
+{{- end -}}
+
+{{/*
+Validate database configuration
+*/}}
+{{- define "directus.validateDatabase" -}}
+{{- if and .Values.mysql.enabled .Values.mysql.external.enabled -}}
+  {{- fail "Cannot enable both mysql.enabled and mysql.external.enabled" -}}
+{{- end -}}
+{{- if and .Values.postgresql.enabled .Values.postgresql.external.enabled -}}
+  {{- fail "Cannot enable both postgresql.enabled and postgresql.external.enabled" -}}
+{{- end -}}
+{{- if and .Values.mysql.external.enabled .Values.postgresql.external.enabled -}}
+  {{- fail "Cannot enable both mysql.external.enabled and postgresql.external.enabled" -}}
+{{- end -}}
+{{- $mysqlEnabled := include "directus.mysqlEnabled" . | eq "true" -}}
+{{- $postgresqlEnabled := include "directus.postgresqlEnabled" . | eq "true" -}}
+{{- if and $mysqlEnabled $postgresqlEnabled -}}
+  {{- fail "Cannot enable both MySQL and PostgreSQL subcharts" -}}
 {{- end -}}
 {{- end -}}

@@ -1,3 +1,4 @@
+{{- include "directus.validateDatabase" . -}}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -57,21 +58,76 @@ spec:
             {{- if include "directus.isValueFrom" .Values.database.host }}
             - name: DB_HOST
               {{- include "directus.smartEnvValue" (dict "value" .Values.database.host "context" $) | nindent 14 }}
+            {{- else if .Values.mysql.external.enabled }}
+            {{- if include "directus.isValueFrom" .Values.mysql.external.host }}
+            - name: DB_HOST
+              {{- include "directus.smartEnvValue" (dict "value" .Values.mysql.external.host "context" $) | nindent 14 }}
+            {{- end }}
+            {{- else if .Values.postgresql.external.enabled }}
+            {{- if include "directus.isValueFrom" .Values.postgresql.external.host }}
+            - name: DB_HOST
+              {{- include "directus.smartEnvValue" (dict "value" .Values.postgresql.external.host "context" $) | nindent 14 }}
+            {{- end }}
             {{- end }}
             
             {{- if include "directus.isValueFrom" .Values.database.port }}
             - name: DB_PORT
               {{- include "directus.smartEnvValue" (dict "value" .Values.database.port "context" $) | nindent 14 }}
+            {{- else if .Values.mysql.external.enabled }}
+            {{- if include "directus.isValueFrom" .Values.mysql.external.port }}
+            - name: DB_PORT
+              {{- include "directus.smartEnvValue" (dict "value" .Values.mysql.external.port "context" $) | nindent 14 }}
+            {{- end }}
+            {{- else if .Values.postgresql.external.enabled }}
+            {{- if include "directus.isValueFrom" .Values.postgresql.external.port }}
+            - name: DB_PORT
+              {{- include "directus.smartEnvValue" (dict "value" .Values.postgresql.external.port "context" $) | nindent 14 }}
+            {{- end }}
             {{- end }}
             
             {{- if include "directus.isValueFrom" .Values.database.name }}
             - name: DB_DATABASE
               {{- include "directus.smartEnvValue" (dict "value" .Values.database.name "context" $) | nindent 14 }}
+            {{- else if .Values.mysql.external.enabled }}
+            {{- if include "directus.isValueFrom" .Values.mysql.external.database }}
+            - name: DB_DATABASE
+              {{- include "directus.smartEnvValue" (dict "value" .Values.mysql.external.database "context" $) | nindent 14 }}
+            {{- end }}
+            {{- else if .Values.postgresql.external.enabled }}
+            {{- if include "directus.isValueFrom" .Values.postgresql.external.database }}
+            - name: DB_DATABASE
+              {{- include "directus.smartEnvValue" (dict "value" .Values.postgresql.external.database "context" $) | nindent 14 }}
+            {{- end }}
             {{- end }}
             
             {{- if include "directus.isValueFrom" .Values.database.username }}
             - name: DB_USER
               {{- include "directus.smartEnvValue" (dict "value" .Values.database.username "context" $) | nindent 14 }}
+            {{- else }}
+            # Database username fallback logic
+            {{- if .Values.mysql.external.enabled }}
+            {{- if .Values.mysql.external.existingSecret }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.mysql.external.existingSecret }}
+                  key: {{ .Values.mysql.external.existingSecretUsernameKey | default "username" }}
+            {{- else if include "directus.isValueFrom" .Values.mysql.external.username }}
+            - name: DB_USER
+              {{- include "directus.smartEnvValue" (dict "value" .Values.mysql.external.username "context" $) | nindent 14 }}
+            {{- end }}
+            {{- else if .Values.postgresql.external.enabled }}
+            {{- if .Values.postgresql.external.existingSecret }}
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.external.existingSecret }}
+                  key: {{ .Values.postgresql.external.existingSecretUsernameKey | default "username" }}
+            {{- else if include "directus.isValueFrom" .Values.postgresql.external.username }}
+            - name: DB_USER
+              {{- include "directus.smartEnvValue" (dict "value" .Values.postgresql.external.username "context" $) | nindent 14 }}
+            {{- end }}
+            {{- end }}
             {{- end }}
 
             {{- if include "directus.isValueFrom" .Values.database.password }}
@@ -79,16 +135,33 @@ spec:
               {{- include "directus.smartEnvValue" (dict "value" .Values.database.password "context" $) | nindent 14 }}
             {{- else }}
             # Database password fallback logic
-            {{- if .Values.externalDatabase.enabled }}
-            {{- if .Values.externalDatabase.existingSecret }}
+            {{- if .Values.mysql.external.enabled }}
+            {{- if .Values.mysql.external.existingSecret }}
             - name: DB_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.externalDatabase.existingSecret }}
-                  key: {{ .Values.externalDatabase.existingSecretPasswordKey | default "password" }}
-            {{- else if .Values.externalDatabase.password }}
+                  name: {{ .Values.mysql.external.existingSecret }}
+                  key: {{ .Values.mysql.external.existingSecretPasswordKey | default "password" }}
+            {{- else if include "directus.isValueFrom" .Values.mysql.external.password }}
             - name: DB_PASSWORD
-              value: {{ .Values.externalDatabase.password | quote }}
+              {{- include "directus.smartEnvValue" (dict "value" .Values.mysql.external.password "context" $) | nindent 14 }}
+            {{- else if include "directus.getValue" .Values.mysql.external.password }}
+            - name: DB_PASSWORD
+              value: {{ include "directus.getValue" .Values.mysql.external.password | quote }}
+            {{- end }}
+            {{- else if .Values.postgresql.external.enabled }}
+            {{- if .Values.postgresql.external.existingSecret }}
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.postgresql.external.existingSecret }}
+                  key: {{ .Values.postgresql.external.existingSecretPasswordKey | default "password" }}
+            {{- else if include "directus.isValueFrom" .Values.postgresql.external.password }}
+            - name: DB_PASSWORD
+              {{- include "directus.smartEnvValue" (dict "value" .Values.postgresql.external.password "context" $) | nindent 14 }}
+            {{- else if include "directus.getValue" .Values.postgresql.external.password }}
+            - name: DB_PASSWORD
+              value: {{ include "directus.getValue" .Values.postgresql.external.password | quote }}
             {{- end }}
             {{- else if eq (include "directus.getValue" .Values.database.client | default .Values.databaseEngine) "mysql" }}
             - name: DB_PASSWORD

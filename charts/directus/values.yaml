@@ -207,12 +207,32 @@ sidecars: []
 # DEPENDENCY CHARTS (Bitnami charts)
 # =============================================================================
 
-# -- MySQL configuration (Bitnami chart)
+# -- MySQL configuration (Bitnami chart and external)
 mysql:
-  # -- Enable MySQL installation
+  # -- Enable MySQL subchart installation
   enabled: true
   
-  # -- MySQL authentication
+  # -- External MySQL configuration
+  external:
+    # -- Use external MySQL database instead of subchart
+    enabled: false
+    # -- External MySQL host
+    host: ""
+    # -- External MySQL port
+    port: 3306
+    # -- External MySQL database name
+    database: "directus"
+    # -- External MySQL username
+    username: "directus"
+    # -- External MySQL password (supports secretKeyRef)
+    # Example: password: { secretKeyRef: { name: "mysql-secret", key: "password" } }
+    password: ""
+    # -- Use existing secret for MySQL credentials
+    existingSecret: ""
+    existingSecretPasswordKey: "password"
+    existingSecretUsernameKey: "username"
+  
+  # -- MySQL subchart authentication (when enabled: true)
   auth:
     # -- Root password (generated if not set)
     rootPassword: ""
@@ -223,12 +243,32 @@ mysql:
     # -- Use existing secret for MySQL passwords
     existingSecret: ""
 
-# -- PostgreSQL configuration (Bitnami chart)
+# -- PostgreSQL configuration (Bitnami chart and external)
 postgresql:
-  # -- Enable PostgreSQL installation
+  # -- Enable PostgreSQL subchart installation
   enabled: false
   
-  # -- PostgreSQL authentication
+  # -- External PostgreSQL configuration
+  external:
+    # -- Use external PostgreSQL database instead of subchart
+    enabled: false
+    # -- External PostgreSQL host
+    host: ""
+    # -- External PostgreSQL port
+    port: 5432
+    # -- External PostgreSQL database name
+    database: "directus"
+    # -- External PostgreSQL username
+    username: "directus"
+    # -- External PostgreSQL password (supports secretKeyRef)
+    # Example: password: { secretKeyRef: { name: "postgres-secret", key: "password" } }
+    password: ""
+    # -- Use existing secret for PostgreSQL credentials
+    existingSecret: ""
+    existingSecretPasswordKey: "password"
+    existingSecretUsernameKey: "username"
+  
+  # -- PostgreSQL subchart authentication (when enabled: true)
   auth:
     # -- Postgres password (generated if not set)
     postgresPassword: ""
@@ -260,37 +300,7 @@ redis:
   replica:
     replicaCount: 0
 
-# =============================================================================
-# EXTERNAL DATABASE CONFIGURATION
-# Use this when connecting to external databases instead of installing dependencies
-# =============================================================================
 
-externalDatabase:
-  # -- Use external database instead of installing MySQL/PostgreSQL
-  enabled: false
-  
-  # -- Database type (mysql, postgresql)
-  type: "mysql"
-  
-  # -- External database host
-  host: ""
-  
-  # -- External database port
-  port: null
-  
-  # -- External database name
-  database: ""
-  
-  # -- External database username
-  username: ""
-  
-  # -- External database password
-  password: ""
-  
-  # -- Existing secret containing database credentials
-  existingSecret: ""
-  existingSecretPasswordKey: "password"
-  existingSecretUsernameKey: "username"
 
 # =============================================================================
 # EXTERNAL REDIS CONFIGURATION  
