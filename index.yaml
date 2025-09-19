@@ -3,6 +3,38 @@ entries:
   directus:
   - apiVersion: v2
     appVersion: 11.9.3
+    created: "2025-09-19T16:53:57.301595799Z"
+    dependencies:
+    - condition: mysql.enabled
+      name: mysql
+      repository: https://charts.bitnami.com/bitnami
+      version: ~13.0.0
+    - condition: postgresql.enabled
+      name: postgresql
+      repository: https://charts.bitnami.com/bitnami
+      version: ~16.7.8
+    - condition: redis.enabled
+      name: redis
+      repository: https://charts.bitnami.com/bitnami
+      version: ~21.1.11
+    description: 'A Helm chart for installing Directus on Kubernetes. Directus is
+      a real-time API and App dashboard for managing SQL database content. '
+    digest: 47040c0398f9fd0b712c744f03b971a9512c6b8af7c165045900ee9e94546529
+    home: https://directus.io/
+    icon: https://avatars.githubusercontent.com/u/79210894
+    maintainers:
+    - name: zjpiazza
+      url: https://github.com/zjpiazza/directus-helm-chart
+    name: directus
+    sources:
+    - https://github.com/zjpiazza/directus-helm-chart
+    - https://github.com/directus/directus
+    type: application
+    urls:
+    - https://github.com/zjpiazza/directus-helm-chart/releases/download/directus-3.0.1/directus-3.0.1.tgz
+    version: 3.0.1
+  - apiVersion: v2
+    appVersion: 11.9.3
     created: "2025-09-08T23:57:26.94423116Z"
     dependencies:
     - condition: mysql.enabled
@@ -129,4 +161,4 @@ entries:
     urls:
     - https://github.com/zjpiazza/directus-helm-chart/releases/download/directus-2.1.0/directus-2.1.0.tgz
     version: 2.1.0
-generated: "2025-09-08T23:57:26.944250376Z"
+generated: "2025-09-19T16:53:57.301611789Z"
