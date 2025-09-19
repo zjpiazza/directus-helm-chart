@@ -18,7 +18,7 @@ maintainers:
   - name: zjpiazza
     url: https://github.com/zjpiazza/directus-helm-chart
 
-version: 3.0.0
+version: 3.0.1
 appVersion: "11.9.3"
 
 dependencies:
